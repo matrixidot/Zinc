@@ -1,6 +1,5 @@
 ﻿namespace Zinc;
 
-using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using static TokenType;
 
