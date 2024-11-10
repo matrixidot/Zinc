@@ -1,4 +1,4 @@
-namespace Zinc.Expressions;
+namespace Zinc.Parsing;
 
 public interface Visitor<R> {
 	 R VisitBinaryExpr (Binary expr);
