@@ -1,10 +1,15 @@
-﻿namespace Zinc;
+﻿using Zinc.Exceptions;
+using Zinc.Interpreting;
+
+namespace Zinc;
 
 using Parsing;
 using Tools;
 
 public class Zinc {
+	private static readonly Interpreter interpreter = new Interpreter();
 	private static bool HadError = false;
+	private static bool HadRuntimeError = false;
 	
 	public static void Main(string[] args) {
 		if (args.Length > 1) {
@@ -24,6 +29,7 @@ public class Zinc {
 		Run(lines);
 		
 		if (HadError) Environment.Exit(65);
+		if (HadRuntimeError) Environment.Exit(70);
 	}
 
 	private static void RunREPL() {
@@ -44,7 +50,7 @@ public class Zinc {
 
 		if (HadError) return;
 
-		Console.WriteLine(new AstPrinter().print(expression));
+		interpreter.Interpret(expression);
 	}
 
 	public static void Error(int line, string message) {
@@ -63,5 +69,10 @@ public class Zinc {
 		else {
 			Report(token.line, $" at '{token.lexeme}'", message);
 		}
+	}
+
+	public static void RuntimeError(RuntimeError error) {
+		Console.Error.WriteLine($"{error.Message}\n{{line {error.token.line}}}");
+		HadRuntimeError = true;
 	}
 }

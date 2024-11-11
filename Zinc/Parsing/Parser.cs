@@ -1,4 +1,6 @@
-﻿namespace Zinc.Parsing;
+﻿using Zinc.Exceptions;
+
+namespace Zinc.Parsing;
 
 using System.Text.RegularExpressions;
 using static TokenType;
@@ -145,4 +147,3 @@ public class Parser(List<Token> tokens) {
     }
 }
 
-internal class ParseError : SystemException {}
