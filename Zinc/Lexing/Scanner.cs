@@ -49,6 +49,10 @@ public class Scanner(string Source) {
 			case '}': AddToken(R_BRACE); break;
 			case '[': AddToken(L_BRACKET); break;
 			case ']': AddToken(R_BRACKET); break;
+			case '~': AddToken(BITWISE_NOT); break;
+			case '|': AddToken(BITWISE_OR); break;
+			case '&': AddToken(BITWISE_AND); break;
+			case '^': AddToken(BITWISE_XOR); break;
 			case ',': AddToken(COMMA); break;
 			case '.':
 				if (char.IsDigit(Peek())) Number(true);
@@ -67,8 +71,8 @@ public class Scanner(string Source) {
 			case '%': AddToken(Match("=") ? MOD_EQUAL : MOD); break; 
 			case '!': AddToken(Match("=") ? NOT_EQUAL : NOT); break;
 			case '=': AddToken(Match("=") ? EQUALITY : ASSIGNMENT); break;
-			case '>': AddToken(Match("=") ? GREATER_EQUAL : GREATER); break;
-			case '<': AddToken(Match("=") ? LESS_EQUAL : LESS); break;
+			case '>': AddToken(Match("=") ? GREATER_EQUAL : Match(">") ? RIGHT_SHIFT: GREATER); break;
+			case '<': AddToken(Match("=") ? LESS_EQUAL : Match("<") ? LEFT_SHIFT : LESS); break;
 
 			case '"': String(); break;
 

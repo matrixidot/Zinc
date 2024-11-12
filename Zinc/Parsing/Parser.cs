@@ -2,7 +2,6 @@
 
 namespace Zinc.Parsing;
 
-using System.Text.RegularExpressions;
 using static TokenType;
 
 public class Parser(List<Token> tokens) {
@@ -39,13 +38,58 @@ public class Parser(List<Token> tokens) {
     }
 
     private Expr Comparison() {
-        Expr expr = Term();
+        Expr expr = BitwiseOr();
 
         while (Match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)) {
+            Token op = Previous;
+            Expr right = BitwiseOr();
+            expr = new Binary(expr, op, right);
+        }
+        return expr;
+    }
+
+    private Expr BitwiseOr() {
+        Expr expr = BitwiseXor();
+
+        while (Match(BITWISE_OR)) {
+            Token op = Previous;
+            Expr right = BitwiseXor();
+            expr = new Binary(expr, op, right);
+        }
+        return expr;
+    }
+    
+    private Expr BitwiseXor() {
+        Expr expr = BitwiseAnd();
+
+        while (Match(BITWISE_XOR)) {
+            Token op = Previous;
+            Expr right = BitwiseAnd();
+            expr = new Binary(expr, op, right);
+        }
+        return expr;
+    }
+    
+    private Expr BitwiseAnd() {
+        Expr expr = Shift();
+
+        while (Match(BITWISE_AND)) {
+            Token op = Previous;
+            Expr right = Shift();
+            expr = new Binary(expr, op, right);
+        }
+        return expr;
+    }
+    
+    private Expr Shift() {
+        Expr expr = Term();
+
+        while (Match(LEFT_SHIFT, RIGHT_SHIFT)) {
             Token op = Previous;
             Expr right = Term();
             expr = new Binary(expr, op, right);
         }
+
         return expr;
     }
 
@@ -82,7 +126,7 @@ public class Parser(List<Token> tokens) {
     }
 
     private Expr Unary() {
-        if (!Match(NOT, MINUS)) return Primary();
+        if (!Match(NOT, MINUS, BITWISE_NOT)) return Primary();
         Token op = Previous;
         Expr right = Unary();
         return new Unary(op, right);

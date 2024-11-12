@@ -1,4 +1,5 @@
-﻿using Zinc.Exceptions;
+﻿using System.Reflection.Metadata;
+using Zinc.Exceptions;
 using Zinc.Parsing;
 
 namespace Zinc.Interpreting;
@@ -29,8 +30,11 @@ public class Interpreter : Visitor<object> {
             case TokenType.NOT:
                 return !IsTruthy(right);
             case TokenType.MINUS:
-                CheckNumberOperand(expr.Op, right);
+                CheckDoubleOperand(expr.Op, right);
                 return -(double)right;
+            case TokenType.BITWISE_NOT:
+                if (!long.TryParse(right.ToString(), out long l)) throw new RuntimeError(expr.Op, $"Operand is not a long for operator {expr.Op.lexeme}");
+                return ~l;
             default:
                 return null;
         }
@@ -44,94 +48,86 @@ public class Interpreter : Visitor<object> {
             case TokenType.PLUS:
                 if (left is double left1 && right is double right2)
                     return left1 + right2;
-                if (left is string ls && right is string rs)
-                    return $"{ls}{rs}";
-                if (left is string s2 && right is double d2)
-                    return s2 + d2;
+                if (left is string ls) {
+                    return ls + right;
+                }
                 throw new RuntimeError(expr.Op,
                     $"Operator {expr.Op.lexeme} is not supported for {left} and {right}");
-
-                break;
             case TokenType.MINUS:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return (double)left - (double)right;
             case TokenType.DIV:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return (double)left / (double)right;
             case TokenType.MULT:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return (double)left * (double)right;
             case TokenType.MOD:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return (double)left % (double)right;
             case TokenType.POWER:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return Math.Pow((double)left, (double)right);
-            case TokenType.PLUS_EQUAL:
-                if (left is double d && right is double right3) {
-                    left = d + right3;
-                    return left;
-                }
-
-                if (left is string s && right is string right4) {
-                    left = s + right4;
-                    return left;
-                }
-
-                if (left is string s1 && right is double d1) {
-                    left = s1 + d1;
-                    return left;
-                }
-
-                throw new RuntimeError(expr.Op,
-                    $"Operator {expr.Op.lexeme} is not supported for {left} and {right}");
-            case TokenType.MINUS_EQUAL:
-                CheckNumberOperands(expr.Op, left, right);
-                left = (double)left - (double)right;
-                return left;            
-            case TokenType.MULT_EQUAL:
-                CheckNumberOperands(expr.Op, left, right);
-                left = (double)left * (double)right;
-                return left;            
-            case TokenType.DIV_EQUAL:
-                CheckNumberOperands(expr.Op, left, right);
-                left = (double)left / (double)right;
-                return left;            
-            case TokenType.MOD_EQUAL:
-                CheckNumberOperands(expr.Op, left, right);
-                left = (double)left % (double)right;
-                return left;            
-            case TokenType.POWER_EQUAL:
-                CheckNumberOperands(expr.Op, left, right);
-                left = Math.Pow((double)left, (double)right);
-                return left;
             case TokenType.GREATER:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return (double)left > (double)right;
             case TokenType.GREATER_EQUAL:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return (double)left >= (double)right;
             case TokenType.LESS:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return (double)left < (double)right;
             case TokenType.LESS_EQUAL:
-                CheckNumberOperands(expr.Op, left, right);
+                CheckDoubleOperands(expr.Op, left, right);
                 return (double)left <= (double)right;
             case TokenType.EQUALITY:
-                return left == right;
+                return left.Equals(right);
             case TokenType.NOT_EQUAL:
-                return left != right;
+                return !left.Equals(right);
+            case TokenType.BITWISE_OR:
+                CheckLongOperands(expr.Op, left, right, out long lleft, out long lright);
+                return lleft | lright;
+            case TokenType.BITWISE_XOR:
+                CheckLongOperands(expr.Op, left, right, out long lleft1, out long lright1);
+                return lleft1 ^ lright1;
+            case TokenType.BITWISE_AND:
+                CheckLongOperands(expr.Op, left, right, out long lleft2, out long lright2);
+                return lleft2 & lright2;
+            case TokenType.LEFT_SHIFT:
+                CheckIntOperands(expr.Op, left, right, out int ileft, out int iright);
+                return ileft << iright;
+            case TokenType.RIGHT_SHIFT:
+                CheckIntOperands(expr.Op, left, right, out int ileft1, out int iright1);
+                return ileft1 >> iright1;
         }
 
         return null;
     }
 
-    private void CheckNumberOperands(Token op, object left, object right) {
+    private void CheckDoubleOperands(Token op, object left, object right) {
         if (left is double && right is double) return;
         throw new RuntimeError(op, $"Operands must be numbers for operator {op.lexeme}");
     }
+
+    private void CheckLongOperands(Token op, object left, object right, out long lleft, out long lright) {
+        if (long.TryParse(left.ToString(), out long l) && long.TryParse(right.ToString(), out long r)) {
+            lleft = l;
+            lright = r;
+            return;
+        }
+        throw new RuntimeError(op, $"Operands must be int types for operator {op.lexeme}");
+    }
     
-    private void CheckNumberOperand(Token op, object operand) {
+    private void CheckIntOperands(Token op, object left, object right, out int ileft, out int iright) {
+        if (int.TryParse(left.ToString(), out int l) && int.TryParse(right.ToString(), out int r)) {
+            ileft = l;
+            iright = r;
+            return;
+        }
+        throw new RuntimeError(op, $"Operands must be integers for operator {op.lexeme}");
+    }
+    
+    private void CheckDoubleOperand(Token op, object operand) {
         if (operand is double) return;
         throw new RuntimeError(op, $"Operand must be a number for operator type {op.lexeme}");
     }
