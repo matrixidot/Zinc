@@ -23,7 +23,7 @@ public static class Program {
     private static void ExecuteTool(int tool, string path) {
         switch (toolArgs[tool]) {
             case "GenAst":
-                DefineExprs.Run(path);
+                DefineAsts.Run(path);
                 break;
             default:
                 Console.Error.WriteLine("Tool not implemented.");
@@ -77,7 +77,5 @@ public static class Program {
             return path;
         }
     }
-
-
 }
 

@@ -2,7 +2,7 @@
 
 using Parsing;
 
-public class AstPrinter : Visitor<string> {
+public class AstPrinter : Expr.ExprVisitor<string> {
     public string print(Expr expr) {
         return expr.Accept(this);
     }

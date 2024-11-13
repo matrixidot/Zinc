@@ -1,12 +1,18 @@
-﻿namespace Tools;
+﻿using a;
 
-public class DefineExprs {
+namespace Tools;
+
+public class DefineAsts {
     public static void Run(string outputDir) {
         DefineAst(outputDir, "Expr", [
             "Binary   : Expr left, Token op, Expr right",
             "Grouping : Expr expression",
             "Literal  : object value",
             "Unary    : Token op, Expr right",
+        ]);        
+        DefineAst(outputDir, "Stmt", [
+            "Expression : Expr expr",
+            "Print      : Expr expr"
         ]);
     }
     
@@ -15,10 +21,10 @@ public class DefineExprs {
         File.Create(path).Close();
         File.WriteAllText(path, string.Empty);
         StreamWriter writer = new StreamWriter(path);
-        writer.WriteLine("namespace Zinc.Expressions;\n");
+        writer.WriteLine("namespace Zinc.Parsing;\n");
+        writer.WriteLine($"public abstract class {baseName} {{\n");
         DefineVisitor(writer, baseName, types);
-        writer.WriteLine($"public abstract class {baseName} {{");
-        writer.WriteLine("\tpublic abstract R Accept<R>(Visitor<R> visitor);");
+        writer.WriteLine($"\tpublic abstract R Accept<R>({baseName.CFL()}Visitor<R> visitor);");
         writer.WriteLine("}\n");
 		
         foreach (string type in types) {
@@ -31,7 +37,7 @@ public class DefineExprs {
     }
 
     private static void DefineVisitor(StreamWriter writer, string baseName, List<String> types) {
-        writer.WriteLine("public interface Visitor<R> {");
+        writer.WriteLine($"public interface {baseName.CFL()}Visitor<R> {{");
 
         foreach (string typeName in types.Select(type => type.Split(":")[0].Trim())) {
             writer.WriteLine($"\t R Visit{typeName}{baseName} ({typeName} {baseName.ToLower()});");
@@ -47,12 +53,12 @@ public class DefineExprs {
         foreach (string field in fields) {
             string type = field.Split(" ")[0].Trim();
             string fieldName = field.Split(" ")[1].Trim();
-            fieldName = char.ToUpper(fieldName[0]) + fieldName.Substring(1);
+            fieldName = fieldName.CFL();
             writer.WriteLine($"\tpublic {type} {fieldName} {{ get; }} = {field.Split(" ")[1].Trim()};");
         }
 		
         writer.WriteLine("");
-        writer.WriteLine("\tpublic override R Accept<R>(Visitor<R> visitor) {");
+        writer.WriteLine($"\tpublic override R Accept<R>({baseName.CFL()}Visitor<R> visitor) {{");
         writer.WriteLine($"\t\treturn visitor.Visit{className}{baseName}(this);");
         writer.WriteLine("\t}");
 		

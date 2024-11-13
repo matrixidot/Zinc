@@ -1,14 +1,15 @@
-﻿using System.Reflection.Metadata;
-using Zinc.Exceptions;
+﻿using Zinc.Exceptions;
 using Zinc.Parsing;
+using Void = Zinc.Tools.Void;
 
 namespace Zinc.Interpreting;
 
-public class Interpreter : Visitor<object> {
-    public void Interpret(Expr expression) {
+public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
+    public void Interpret(List<Stmt> statements) {
         try {
-            object value = Evaluate(expression);
-            Console.WriteLine(Stringify(value));
+            foreach (Stmt statement in statements) {
+                Execute(statement);
+            }
         }
         catch (RuntimeError error) {
             Zinc.RuntimeError(error);
@@ -104,6 +105,17 @@ public class Interpreter : Visitor<object> {
         return null;
     }
 
+    public Void VisitExpressionStmt(Expression stmt) {
+        Evaluate(stmt.Expr);
+        return null;
+    }
+    
+    public Void VisitPrintStmt(Print stmt) {
+        object value = Evaluate(stmt.Expr);
+        Console.WriteLine(Stringify(value));
+        return null;
+    }
+
     private void CheckDoubleOperands(Token op, object left, object right) {
         if (left is double && right is double) return;
         throw new RuntimeError(op, $"Operands must be numbers for operator {op.lexeme}");
@@ -143,6 +155,10 @@ public class Interpreter : Visitor<object> {
     
     private object Evaluate(Expr expr) {
         return expr.Accept(this);
+    }
+
+    private void Execute(Stmt stmt) {
+        stmt.Accept(this);
     }
 
     private string Stringify(object obj) {

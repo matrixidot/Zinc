@@ -14,19 +14,35 @@ public class Parser(List<Token> tokens) {
     private Token Previous => tokens[Current - 1];
 
 
-    public Expr Parse() {
-        try {
-            return Expression();
-        }
-        catch (ParseError error) {
-            return null;
-        }
+    public List<Stmt> Parse() {
+        List<Stmt> statements = new();
+        while (!IsAtEnd)
+            statements.Add(Statement());
+        return statements;
     }
     
     private Expr Expression() {
         return Equality();
     }
 
+    private Stmt Statement() {
+        if (Match(PRINT)) return PrintStatement();
+
+        return ExpressionStatement();
+    }
+
+    private Stmt PrintStatement() {
+        Expr value = Expression();
+        Consume(SEMICOLON, "Expected ';' after value.");
+        return new Print(value);
+    }
+
+    private Stmt ExpressionStatement() {
+        Expr expr = Expression();
+        Consume(SEMICOLON, "Expected ';' after expression.");
+        return new Expression(expr);
+    }
+    
     private Expr Equality() {
         Expr expr = Comparison();
         while (Match(NOT_EQUAL, EQUALITY)) {
