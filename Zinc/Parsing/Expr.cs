@@ -8,6 +8,7 @@ public interface ExprVisitor<R> {
 	 R VisitGroupingExpr (Grouping expr);
 	 R VisitLiteralExpr (Literal expr);
 	 R VisitUnaryExpr (Unary expr);
+	 R VisitIncDecExpr (IncDec expr);
 	 R VisitVariableExpr (Variable expr);
 }
 
@@ -55,6 +56,16 @@ public class Unary(Token op, Expr right) : Expr {
 
 	public override R Accept<R>(ExprVisitor<R> visitor) {
 		return visitor.VisitUnaryExpr(this);
+	}
+}
+
+public class IncDec(Token op, Variable target, bool isPrefix) : Expr {
+	public Token Op { get; } = op;
+	public Variable Target { get; } = target;
+	public bool IsPrefix { get; } = isPrefix;
+
+	public override R Accept<R>(ExprVisitor<R> visitor) {
+		return visitor.VisitIncDecExpr(this);
 	}
 }
 

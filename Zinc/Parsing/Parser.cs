@@ -205,10 +205,38 @@ public class Parser(List<Token> tokens) {
     }
     
     private Expr Unary() {
-        if (!Match(NOT, MINUS, BITWISE_NOT)) return Primary();
+        if (Match(INCREMENT, DECREMENT)) {
+            Token op = Previous;
+            Expr right = Unary();
+
+            if (right is Variable var) {
+                return new IncDec(op, var, isPrefix: true);
+            }
+            
+            throw Error(op, "Invalid increment/decrement target.");
+        }
+        
+        if (!Match(NOT, MINUS, BITWISE_NOT)) return Postfix(); {
+            Token op = Previous;
+            Expr right = Unary();
+            return new Unary(op, right);
+        }
+
+    }
+    
+    private Expr Postfix() {
+        Expr expr = Primary();
+
+        // Check for postfix increment/decrement
+        if (!Match(INCREMENT, DECREMENT)) return expr;
         Token op = Previous;
-        Expr right = Unary();
-        return new Unary(op, right);
+        
+        if (expr is Variable var) {
+            return new IncDec(op, var, isPrefix: false);
+        }
+        
+        throw Error(op, "Invalid increment/decrement target.");
+
     }
     
     private Expr Primary() {

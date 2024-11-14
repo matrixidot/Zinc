@@ -10,6 +10,7 @@ public class DefineAsts {
             "Grouping       : Expr expression",
             "Literal        : object value",
             "Unary          : Token op, Expr right",
+            "IncDec         : Token op, Variable target, bool isPrefix",
             "Variable       : Token name",
         ]);        
         DefineAst(outputDir, "Stmt", [
