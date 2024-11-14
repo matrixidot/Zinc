@@ -17,7 +17,7 @@ public class Scanner(string Source) {
 		["return"] = RETURN,
 		["super"] = SUPER,
 		["this"] = THIS,
-		["def"] = DEF,
+		["fun"] = FUN,
 		["null"] = NULL,
 		["print"] = PRINT,
 		["var"] = VAR,
@@ -35,7 +35,6 @@ public class Scanner(string Source) {
 			Start = Current;
 			ScanToken();
 		}
-
 		Tokens.Add(new Token(EOF, "", null, Line));
 		return Tokens;
 	}

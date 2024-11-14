@@ -1,10 +1,9 @@
-﻿using Zinc.Exceptions;
-using Zinc.Interpreting;
+﻿namespace Zinc;
 
-namespace Zinc;
-
+using Exceptions;
+using Interpreting;
 using Parsing;
-using Tools;
+using static Environment;
 
 public class Zinc {
 	private static readonly Interpreter interpreter = new Interpreter();
@@ -14,7 +13,7 @@ public class Zinc {
 	public static void Main(string[] args) {
 		if (args.Length > 1) {
 			Console.WriteLine("Usage: zinc <path>");
-			Environment.Exit(64);
+			Exit(64);
 		} else if (args.Length == 1) {
 			RunScript(args[0]);
 		}
@@ -28,15 +27,21 @@ public class Zinc {
 		string lines = File.ReadAllText(path);
 		Run(lines);
 		
-		if (HadError) Environment.Exit(65);
-		if (HadRuntimeError) Environment.Exit(70);
+		if (HadError) Exit(65);
+		if (HadRuntimeError) Exit(70);
 	}
 
 	private static void RunREPL() {
 		for (;;) {
-			Console.Write("> ");
+			Console.Write("Zinc > ");
 			string line = Console.ReadLine();
 			if (line == null) break;
+			if (line.Trim() == "{") {
+				while (!line.EndsWith('}')) {
+					Console.Write("... ");
+					line += Console.ReadLine();
+				}
+			}
 			Run(line);
 			HadError = false;
 		}
@@ -47,7 +52,7 @@ public class Zinc {
 		List<Token> tokens = scanner.ScanTokens();
 		Parser parser = new Parser(tokens);
 		List<Stmt> statements = parser.Parse();
-
+		
 		if (HadError) return;
 
 		interpreter.Interpret(statements);
@@ -58,16 +63,16 @@ public class Zinc {
 	}
 
 	private static void Report(int line, string where, string message) {
-		Console.Error.WriteLine($"[Line: {line}] Error {where} : {message}");
+		Console.Error.WriteLine($"[Line: {line}] Error {where}: {message}");
 		HadError = true;
 	}
 
 	public static void Error(Token token, string message) {
 		if (token.type == TokenType.EOF) {
-			Report(token.line, ", at end", message);
+			Report(token.line, "at end", message);
 		}
 		else {
-			Report(token.line, $" at '{token.lexeme}'", message);
+			Report(token.line, $"at '{token.lexeme}'", message);
 		}
 	}
 

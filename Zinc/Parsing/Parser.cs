@@ -2,6 +2,7 @@
 
 namespace Zinc.Parsing;
 
+using Microsoft.VisualBasic;
 using static TokenType;
 
 public class Parser(List<Token> tokens) {
@@ -17,30 +18,92 @@ public class Parser(List<Token> tokens) {
     public List<Stmt> Parse() {
         List<Stmt> statements = new();
         while (!IsAtEnd)
-            statements.Add(Statement());
+            statements.Add(Declaration());
         return statements;
     }
     
-    private Expr Expression() {
-        return Equality();
+    private Stmt Declaration() {
+        try {
+            return Match(VAR) ? VarDeclaration() : Statement();
+        }
+        catch (ParseError error) {
+            Synchronize();
+            return null;
+        }
     }
-
+    
     private Stmt Statement() {
         if (Match(PRINT)) return PrintStatement();
-
+        if (Match(L_BRACE)) return new Block(Block());
         return ExpressionStatement();
     }
 
-    private Stmt PrintStatement() {
+    private List<Stmt> Block() {
+        List<Stmt> statements = new();
+        
+        while (!Check(R_BRACE) && !IsAtEnd) statements.Add(Declaration());
+        
+        Consume(R_BRACE, "Expected '}' after block.");
+        return statements;
+    }
+    
+    private Var VarDeclaration() {
+        Token name = Consume(IDENTIFIER, "Expected name after 'var'");
+
+        Expr initializer = null;
+        if (Match(ASSIGNMENT)) {
+            initializer = Expression();
+        }
+        Consume(SEMICOLON, "Expected ';' after variable declaration");
+        return new Var(name, initializer);
+    }
+    
+    private Print PrintStatement() {
         Expr value = Expression();
         Consume(SEMICOLON, "Expected ';' after value.");
         return new Print(value);
     }
 
-    private Stmt ExpressionStatement() {
+    private Expression ExpressionStatement() {
         Expr expr = Expression();
         Consume(SEMICOLON, "Expected ';' after expression.");
         return new Expression(expr);
+    }
+    
+    private Expr Expression() {
+        return Assignment();
+    }
+
+    private Expr Assignment() {
+        Expr expr = Equality();
+        
+        if (Match(ASSIGNMENT, PLUS_EQUAL, MINUS_EQUAL, MULT_EQUAL, DIV_EQUAL, MOD_EQUAL, POWER_EQUAL)) {
+            Token op = Previous;
+            Expr value = Assignment();
+
+            if (expr is Variable var) {
+                Token name = var.Name;
+
+                if (op.type != ASSIGNMENT) {
+                    TokenType baseOpType = op.type switch {
+                        PLUS_EQUAL => PLUS,
+                        MINUS_EQUAL => MINUS,
+                        MULT_EQUAL => MULT,
+                        DIV_EQUAL => DIV,
+                        MOD_EQUAL => MOD,
+                        POWER_EQUAL => POWER,
+                        _ => throw Error(op, "Unknown compound assignment operator."),
+                    };
+
+                    Expr compoundValue = new Binary(var, new Token(baseOpType, op.lexeme, null, op.line), value);
+                    return new Assign(name, compoundValue);
+                }
+                
+                return new Assign(name, value);
+            }
+            Error(op, "Invalid assignment target.");
+        }
+        return expr;
     }
     
     private Expr Equality() {
@@ -52,7 +115,7 @@ public class Parser(List<Token> tokens) {
         }
         return expr;
     }
-
+    
     private Expr Comparison() {
         Expr expr = BitwiseOr();
 
@@ -63,7 +126,7 @@ public class Parser(List<Token> tokens) {
         }
         return expr;
     }
-
+    
     private Expr BitwiseOr() {
         Expr expr = BitwiseXor();
 
@@ -108,7 +171,7 @@ public class Parser(List<Token> tokens) {
 
         return expr;
     }
-
+    
     private Expr Term() {
         Expr expr = Factor();
 
@@ -119,7 +182,7 @@ public class Parser(List<Token> tokens) {
         }
         return expr;
     }
-
+    
     private Expr Factor() {
         Expr expr = Exponent();
         while (Match(MULT, DIV, MOD)) {
@@ -129,7 +192,7 @@ public class Parser(List<Token> tokens) {
         }
         return expr;
     }
-
+    
     private Expr Exponent() {
         Expr expr = Unary();
 
@@ -140,20 +203,20 @@ public class Parser(List<Token> tokens) {
         }
         return expr;
     }
-
+    
     private Expr Unary() {
         if (!Match(NOT, MINUS, BITWISE_NOT)) return Primary();
         Token op = Previous;
         Expr right = Unary();
         return new Unary(op, right);
     }
-
+    
     private Expr Primary() {
         if (Match(FALSE)) return new Literal(false);
         if (Match(TRUE)) return new Literal(true);
         if (Match(NULL)) return new Literal(null);
-        
         if (Match(NUMBER, STRING)) return new Literal(Previous.literal);
+        if (Match(IDENTIFIER)) return new Variable(Previous);
 
         if (Match(L_PAREN)) {
             Expr expr = Expression();
@@ -164,8 +227,7 @@ public class Parser(List<Token> tokens) {
         throw Error(Peek, "Expected expression.");
     }
     
-    
-
+    // Helper Methods
     private bool Match(params TokenType[] types) {
         if (!types.Any(Check)) return false;
         Advance();
@@ -199,7 +261,7 @@ public class Parser(List<Token> tokens) {
             if (Previous.type == SEMICOLON) return;
 
             switch (Peek.type) {
-                case CLASS or DEF or VAR or FOR or IF or WHILE or PRINT or RETURN: return;
+                case CLASS or FUN or VAR or FOR or IF or WHILE or PRINT or RETURN: return;
             }
 
             Advance();

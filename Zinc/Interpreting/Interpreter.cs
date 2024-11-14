@@ -5,8 +5,15 @@ using Void = Zinc.Tools.Void;
 namespace Zinc.Interpreting;
 
 public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
+    private Environment env = new();
     public void Interpret(List<Stmt> statements) {
         try {
+            if (statements.Count == 1 && statements[0] is Expression expr) {
+                object value = Evaluate(expr.Expr);
+                Console.WriteLine(Stringify(value));
+                return;
+            }
+            
             foreach (Stmt statement in statements) {
                 Execute(statement);
             }
@@ -105,6 +112,16 @@ public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
         return null;
     }
 
+    public object VisitVariableExpr(Variable expr) {
+        return env.Get(expr.Name);
+    }
+
+    public object VisitAssignExpr(Assign expr) {
+        object value = Evaluate(expr.Value);
+        env.Assign(expr.Name, value);
+        return value;
+    }
+
     public Void VisitExpressionStmt(Expression stmt) {
         Evaluate(stmt.Expr);
         return null;
@@ -116,6 +133,21 @@ public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
         return null;
     }
 
+    public Void VisitVarStmt(Var stmt) {
+        object value = null;
+        if (stmt.Initializer != null) {
+            value = Evaluate(stmt.Initializer);
+        }
+        
+        env.Declare(stmt.Name.lexeme, value);
+        return null;
+    }
+
+    public Void VisitBlockStmt(Block stmt) {
+        ExecuteBlock(stmt.Statements, new Environment(env));
+        return null;
+    }
+    
     private void CheckDoubleOperands(Token op, object left, object right) {
         if (left is double && right is double) return;
         throw new RuntimeError(op, $"Operands must be numbers for operator {op.lexeme}");
@@ -159,6 +191,20 @@ public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
 
     private void Execute(Stmt stmt) {
         stmt.Accept(this);
+    }
+
+    private void ExecuteBlock(List<Stmt> statements, Environment environment) {
+        Environment previous = env;
+        try {
+            env = environment;
+
+            foreach (Stmt statement in statements) {
+                Execute(statement);
+            }
+        }
+        finally {
+            env = previous;
+        }
     }
 
     private string Stringify(object obj) {

@@ -3,13 +3,24 @@ namespace Zinc.Parsing;
 public abstract class Expr {
 
 public interface ExprVisitor<R> {
+	 R VisitAssignExpr (Assign expr);
 	 R VisitBinaryExpr (Binary expr);
 	 R VisitGroupingExpr (Grouping expr);
 	 R VisitLiteralExpr (Literal expr);
 	 R VisitUnaryExpr (Unary expr);
+	 R VisitVariableExpr (Variable expr);
 }
 
 	public abstract R Accept<R>(ExprVisitor<R> visitor);
+}
+
+public class Assign(Token name, Expr value) : Expr {
+	public Token Name { get; } = name;
+	public Expr Value { get; } = value;
+
+	public override R Accept<R>(ExprVisitor<R> visitor) {
+		return visitor.VisitAssignExpr(this);
+	}
 }
 
 public class Binary(Expr left, Token op, Expr right) : Expr {
@@ -44,6 +55,14 @@ public class Unary(Token op, Expr right) : Expr {
 
 	public override R Accept<R>(ExprVisitor<R> visitor) {
 		return visitor.VisitUnaryExpr(this);
+	}
+}
+
+public class Variable(Token name) : Expr {
+	public Token Name { get; } = name;
+
+	public override R Accept<R>(ExprVisitor<R> visitor) {
+		return visitor.VisitVariableExpr(this);
 	}
 }
 

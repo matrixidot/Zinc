@@ -3,13 +3,15 @@
 public static class Program {
     private static readonly string[] toolArgs = ["GenAst"];
     private static string previousPath = string.Empty;
+    private static string path = @"C:\Users\Romir\Desktop\Projects\C#\Zinc\Zinc\Parsing";
 
     public static void Main(string[] args) {
         while (true) {
             DisplayToolOptions();
             int tool = GetToolSelection();
 
-            string path = GetPath();
+            if (path == string.Empty || !Path.Exists(path))
+                path = GetPath();
             if (path.Equals("quit", StringComparison.OrdinalIgnoreCase) || path.Equals("exit", StringComparison.OrdinalIgnoreCase)) {
                 Console.WriteLine("Exiting program.");
                 break;
