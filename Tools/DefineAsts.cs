@@ -1,6 +1,4 @@
-﻿using a;
-
-namespace Tools;
+﻿namespace Tools;
 
 public class DefineAsts {
     public static void Run(string outputDir) {
@@ -17,17 +15,16 @@ public class DefineAsts {
         ]);        
         DefineAst(outputDir, "Stmt", [
             "Block      : List<Stmt> statements",
+            "Class      : Token name, List<Function> methods",
             "Expression : Expr expr",
             "Function   : Token name, List<Token> parameters, List<Stmt> body",
             "If         : Expr condition, Stmt thenBranch, List<Elif> elifBranches, Stmt elseBranch",
             "Elif       : Expr condition, Stmt branch",
-            "Print      : Expr expr",
-            "Println    : Expr expr",
             "Return     : Token keyword, Expr value",
             "Var        : Token name, Expr initializer",
             "While      : Expr condition, Stmt body",
-            "Break      : ",
-            "Continue   : ",
+            "Break      : Token keyword",
+            "Continue   : Token keyword",
         ]);
     }
     
@@ -36,9 +33,10 @@ public class DefineAsts {
         File.Create(path).Close();
         File.WriteAllText(path, string.Empty);
         StreamWriter writer = new StreamWriter(path);
-        writer.WriteLine("namespace Zinc.Parsing;\n");
-        writer.WriteLine($"public abstract class {baseName} {{\n");
+        writer.WriteLine("namespace Zinc.API.Parsing;\n");
+        writer.WriteLine("using Lexing;");
         DefineVisitor(writer, baseName, types);
+        writer.WriteLine($"public abstract class {baseName} {{\n");
         writer.WriteLine($"\tpublic abstract R Accept<R>({baseName.CFL()}Visitor<R> visitor);");
         writer.WriteLine("}\n");
 		

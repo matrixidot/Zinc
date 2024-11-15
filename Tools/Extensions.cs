@@ -1,5 +1,5 @@
 ﻿
-namespace a;
+namespace Tools;
 
 public static class Extensions {
     public static string CFL(this string s) {
