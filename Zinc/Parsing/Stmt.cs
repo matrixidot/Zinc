@@ -1,14 +1,18 @@
 namespace Zinc.Parsing;
 
+using Lexing;
+
 public abstract class Stmt {
 
 public interface StmtVisitor<R> {
 	 R VisitBlockStmt (Block stmt);
 	 R VisitExpressionStmt (Expression stmt);
+	 R VisitFunctionStmt (Function stmt);
 	 R VisitIfStmt (If stmt);
 	 R VisitElifStmt (Elif stmt);
 	 R VisitPrintStmt (Print stmt);
 	 R VisitPrintlnStmt (Println stmt);
+	 R VisitReturnStmt (Return stmt);
 	 R VisitVarStmt (Var stmt);
 	 R VisitWhileStmt (While stmt);
 	 R VisitBreakStmt (Break stmt);
@@ -31,6 +35,16 @@ public class Expression(Expr expr) : Stmt {
 
 	public override R Accept<R>(StmtVisitor<R> visitor) {
 		return visitor.VisitExpressionStmt(this);
+	}
+}
+
+public class Function(Token name, List<Token> parameters, List<Stmt> body) : Stmt {
+	public Token Name { get; } = name;
+	public List<Token> Parameters { get; } = parameters;
+	public List<Stmt> Body { get; } = body;
+
+	public override R Accept<R>(StmtVisitor<R> visitor) {
+		return visitor.VisitFunctionStmt(this);
 	}
 }
 
@@ -67,6 +81,15 @@ public class Println(Expr expr) : Stmt {
 
 	public override R Accept<R>(StmtVisitor<R> visitor) {
 		return visitor.VisitPrintlnStmt(this);
+	}
+}
+
+public class Return(Token keyword, Expr value) : Stmt {
+	public Token Keyword { get; } = keyword;
+	public Expr Value { get; } = value;
+
+	public override R Accept<R>(StmtVisitor<R> visitor) {
+		return visitor.VisitReturnStmt(this);
 	}
 }
 

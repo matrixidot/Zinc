@@ -1,6 +1,7 @@
-﻿namespace Zinc.Interpreting;
+﻿namespace Zinc.Tools;
 
 using Exceptions;
+using Lexing;
 
 public class Environment {
     private readonly Environment enclosing;

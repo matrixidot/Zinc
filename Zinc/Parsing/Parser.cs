@@ -3,8 +3,9 @@
 namespace Zinc.Parsing;
 
 using System.Runtime.InteropServices.JavaScript;
+using Lexing;
 using Microsoft.VisualBasic;
-using static TokenType;
+using static Lexing.TokenType;
 
 public class Parser(List<Token> tokens) {
     private List<Token> Tokens { get; } = tokens;
@@ -27,7 +28,10 @@ public class Parser(List<Token> tokens) {
     
     private Stmt Declaration() {
         try {
-            return Match(VAR) ? VarDeclaration() : Statement();
+            if (Match(FUN)) return Function("function");
+            if (Match(VAR)) return VarDeclaration();
+            
+            return Statement();
         }
         catch (ParseError error) {
             Synchronize();
@@ -39,6 +43,7 @@ public class Parser(List<Token> tokens) {
         if (Match(IF)) return IfStatement();
         if (Match(PRINT)) return PrintStatement();
         if (Match(PRINTLN)) return PrintLnStatement();
+        if (Match(RETURN)) return ReturnStatement();
         if (Match(WHILE)) return WhileStatement();
         if (Match(FOR)) return ForStatement();
         if (Match(BREAK)) return BreakStatement();
@@ -88,16 +93,13 @@ public class Parser(List<Token> tokens) {
         Stmt body = Statement();
         breakCount--;
         contCount--;
-
-        // Create the loop body
+        
         if (increment != null) {
             body = new Block(new List<Stmt> { body });
         }
 
-        // Return ForLoopWithIncrement for the interpreter
         Stmt loop = new ForLoopWithIncrement(condition, body, increment);
 
-        // Wrap with initializer if it exists
         if (initializer != null) {
             loop = new Block(new List<Stmt> { initializer, loop });
         }
@@ -161,12 +163,43 @@ public class Parser(List<Token> tokens) {
         return new Println(value);
     }
 
+    private Return ReturnStatement() {
+        Token keyword = Previous;
+        Expr value = null;
+        if (!Check(SEMICOLON)) {
+            value = Expression();
+        }
+
+        Consume(SEMICOLON, "Expected ';' after return value.");
+        return new Return(keyword, value);
+    }
+
     private Expression ExpressionStatement() {
         Expr expr = Expression();
         Consume(SEMICOLON, "Expected ';' after expression.");
         return new Expression(expr);
     }
-    
+
+    private Function Function(string kind) {
+        Token name = Consume(IDENTIFIER, $"Expected {kind} name.");
+        Consume(L_PAREN, $"Expected '(' after {kind} name.");
+        List<Token> parameters = new();
+        
+        if (!Check(R_PAREN)) {
+            do {
+                if (parameters.Count >= 255) {
+                    Error(Peek, "Cannot have more than 255 parameters.");
+                }
+
+                parameters.Add(Consume(IDENTIFIER, "Expected parameter name"));
+            } while (Match(COMMA));
+        }
+        Consume(R_PAREN, $"Expected ')' after parameters to finish declaring {kind}");
+
+        Consume(L_BRACE, $"Expected '{{' before {kind} body.");
+        List<Stmt> body = Block();
+        return new Function(name, parameters, body);
+    }
     private Expr Expression() {
         return Assignment();
     }
@@ -340,11 +373,11 @@ public class Parser(List<Token> tokens) {
             Expr right = Unary();
             return new Unary(op, right);
         }
-
+            
     }
     
     private Expr Postfix() {
-        Expr expr = Primary();
+        Expr expr = Call();
 
         // Check for postfix increment/decrement
         if (!Match(INCREMENT, DECREMENT)) return expr;
@@ -356,6 +389,35 @@ public class Parser(List<Token> tokens) {
         
         throw Error(op, "Invalid increment/decrement target.");
 
+    }
+
+    private Expr Call() {
+        Expr expr = Primary();
+
+        while (true) {
+            if (Match(L_PAREN)) {
+                expr = FinishCall(expr);
+            }
+            else {
+                break;
+            }
+        }
+        return expr;
+    }
+
+    private Expr FinishCall(Expr callee) {
+        List<Expr> arguments = new();
+        if (!Check(R_PAREN)) {
+            do {
+                if (arguments.Count >= 255) {
+                    Error(Peek, "Cannot have more than 255 arguments.");
+                }
+                arguments.Add(Expression());
+            } while (Match(COMMA));
+        }
+
+        Token paren = Consume(R_PAREN, "Expected ')' after arguments");
+        return new Call(callee, paren, arguments);
     }
     
     private Expr Primary() {

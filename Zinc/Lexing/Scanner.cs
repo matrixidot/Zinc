@@ -1,4 +1,4 @@
-﻿namespace Zinc;
+﻿namespace Zinc.Lexing;
 
 using System.Text.RegularExpressions;
 using static TokenType;

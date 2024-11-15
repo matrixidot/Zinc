@@ -2,9 +2,9 @@
 
 using Exceptions;
 using Interpreting;
+using Lexing;
 using Parsing;
 using static Environment;
-using Environment = System.Environment;
 
 public class Zinc {
 	private static readonly Interpreter interpreter = new Interpreter();

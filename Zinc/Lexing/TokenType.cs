@@ -1,4 +1,4 @@
-﻿namespace Zinc;
+﻿namespace Zinc.Lexing;
 
 public enum TokenType {
 	// Single char Tokens

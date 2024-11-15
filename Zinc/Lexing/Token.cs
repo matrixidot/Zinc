@@ -1,4 +1,4 @@
-﻿namespace Zinc;
+﻿namespace Zinc.Lexing;
 
 public record Token(TokenType type, string lexeme, object literal, int line) {
 	
