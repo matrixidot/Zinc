@@ -4,6 +4,7 @@ using Exceptions;
 using Interpreting;
 using Parsing;
 using static Environment;
+using Environment = System.Environment;
 
 public class Zinc {
 	private static readonly Interpreter interpreter = new Interpreter();
@@ -11,17 +12,22 @@ public class Zinc {
 	private static bool HadRuntimeError = false;
 	
 	public static void Main(string[] args) {
-		if (args.Length > 1) {
-			Console.WriteLine("Usage: zinc <path>");
-			Exit(64);
-		} else if (args.Length == 1) {
-			RunScript(args[0]);
+		Console.Write("Enter path to run script or hit enter for REPL: ");
+		string str = Console.ReadLine();
+		if (Path.Exists(str)) {
+			RunScript(str);
+			Console.Write("Exit? (y)");
+			str = Console.ReadLine();
+			if (str == "y")
+				Exit(64);
+			else
+				Main(args);
 		}
 		else {
 			RunREPL();
 		}
 	}
-
+	
 
 	private static void RunScript(string path) {
 		string lines = File.ReadAllText(path);
@@ -33,13 +39,27 @@ public class Zinc {
 
 	private static void RunREPL() {
 		for (;;) {
-			Console.Write("Zinc > ");
+			Console.Write(">>> ");
 			string line = Console.ReadLine();
 			if (line == null) break;
-			if (line.Trim() == "{") {
-				while (!line.EndsWith('}')) {
-					Console.Write("... ");
+			if (line.Trim().EndsWith('{')) {
+				// endingSequence = line.Trim().Last() == '{' ? "}" : ");";
+				string endingSequence = "}";
+				int numEndings = 1;
+
+				while (true) {
+					if (line.Trim().EndsWith(endingSequence)) {
+						numEndings--;
+						if (numEndings == 0) break;
+					}
+					for (int i = 0; i < numEndings; i++) {
+						Console.Write("...");
+					}
+					Console.Write(" ");
 					line += Console.ReadLine();
+					if (line.Trim().EndsWith('{')) {
+						numEndings++;
+					}
 				}
 			}
 			Run(line);

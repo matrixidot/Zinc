@@ -20,10 +20,13 @@ public class Scanner(string Source) {
 		["fun"] = FUN,
 		["null"] = NULL,
 		["print"] = PRINT,
+		["println"] = PRINTLN,
 		["var"] = VAR,
 		["class"] = CLASS,
 		["for"] = FOR,
 		["while"] = WHILE,
+		["break"] = BREAK,
+		["continue"] = CONTINUE,
 	};
 	
 	private int Start = 0;

@@ -9,6 +9,7 @@ public class DefineAsts {
             "Binary         : Expr left, Token op, Expr right",
             "Grouping       : Expr expression",
             "Literal        : object value",
+            "Logical        : Expr left, Token op, Expr right",
             "Unary          : Token op, Expr right",
             "IncDec         : Token op, Variable target, bool isPrefix",
             "Variable       : Token name",
@@ -16,8 +17,14 @@ public class DefineAsts {
         DefineAst(outputDir, "Stmt", [
             "Block      : List<Stmt> statements",
             "Expression : Expr expr",
+            "If         : Expr condition, Stmt thenBranch, List<Elif> elifBranches, Stmt elseBranch",
+            "Elif       : Expr condition, Stmt branch",
             "Print      : Expr expr",
+            "Println    : Expr expr",
             "Var        : Token name, Expr initializer",
+            "While      : Expr condition, Stmt body",
+            "Break      : ",
+            "Continue   : ",
         ]);
     }
     
@@ -52,15 +59,22 @@ public class DefineAsts {
     }
 	
     private static void DefineType(StreamWriter writer, string baseName, string className, string fieldList) {
-        writer.WriteLine($"public class {className}({fieldList}) : {baseName} {{");
-		
-        string[] fields = fieldList.Split(", ");
-        foreach (string field in fields) {
-            string type = field.Split(" ")[0].Trim();
-            string fieldName = field.Split(" ")[1].Trim();
-            fieldName = fieldName.CFL();
-            writer.WriteLine($"\tpublic {type} {fieldName} {{ get; }} = {field.Split(" ")[1].Trim()};");
+        if (fieldList == string.Empty) {
+            writer.WriteLine($"public class {className} : {baseName} {{");
+
         }
+        else {
+            writer.WriteLine($"public class {className}({fieldList}) : {baseName} {{");
+            string[] fields = fieldList.Split(", ");
+            foreach (string field in fields) {
+                string type = field.Split(" ")[0].Trim();
+                string fieldName = field.Split(" ")[1].Trim();
+                fieldName = fieldName.CFL();
+                writer.WriteLine($"\tpublic {type} {fieldName} {{ get; }} = {field.Split(" ")[1].Trim()};");
+            }
+        }
+        
+        
 		
         writer.WriteLine("");
         writer.WriteLine($"\tpublic override R Accept<R>({baseName.CFL()}Visitor<R> visitor) {{");

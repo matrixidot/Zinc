@@ -2,6 +2,7 @@
 
 namespace Zinc.Parsing;
 
+using System.Runtime.InteropServices.JavaScript;
 using Microsoft.VisualBasic;
 using static TokenType;
 
@@ -14,6 +15,8 @@ public class Parser(List<Token> tokens) {
     private Token Peek => Tokens[Current];
     private Token Previous => tokens[Current - 1];
 
+    private int breakCount = 0;
+    private int contCount = 0;
 
     public List<Stmt> Parse() {
         List<Stmt> statements = new();
@@ -33,11 +36,99 @@ public class Parser(List<Token> tokens) {
     }
     
     private Stmt Statement() {
+        if (Match(IF)) return IfStatement();
         if (Match(PRINT)) return PrintStatement();
+        if (Match(PRINTLN)) return PrintLnStatement();
+        if (Match(WHILE)) return WhileStatement();
+        if (Match(FOR)) return ForStatement();
+        if (Match(BREAK)) return BreakStatement();
+        if (Match(CONTINUE)) return ContinueStatement();
         if (Match(L_BRACE)) return new Block(Block());
         return ExpressionStatement();
     }
 
+    private Break BreakStatement() {
+        if (breakCount == 0) {
+            throw Error(Peek, "'break' used in invalid place.");
+        }
+        Consume(SEMICOLON, "Expected ';' after 'break' statement.");
+        return new Break();
+    }
+
+    private Continue ContinueStatement() {
+        if (contCount == 0) {
+            throw Error(Peek, "'continue' used in invalid place.");
+        }
+        Consume(SEMICOLON, "Expected ';' after 'continue' statement.");
+        return new Continue();
+    }
+    private While WhileStatement() {
+        Consume(L_PAREN, "Expected '(' after 'while'.");
+        Expr condition = Expression();
+        Consume(R_PAREN, "Expected ')' after condition to complete while loop.");
+        breakCount++;
+        contCount++;
+        Stmt body = Statement();
+        breakCount--;
+        contCount--;
+        return new While(condition, body);
+    }
+
+    private Stmt ForStatement() {
+        Consume(L_PAREN, "Expected '(' after 'for'.");
+    
+        Stmt initializer = Match(SEMICOLON) ? null : Match(VAR) ? VarDeclaration() : ExpressionStatement();
+        Expr condition = !Check(SEMICOLON) ? Expression() : new Literal(true);
+        Consume(SEMICOLON, "Expected ';' after for-loop condition.");
+        Expr increment = !Check(R_PAREN) ? Expression() : null;
+        Consume(R_PAREN, "Expected ')' after for-loop increment.");
+
+        breakCount++;
+        contCount++;
+        Stmt body = Statement();
+        breakCount--;
+        contCount--;
+
+        // Create the loop body
+        if (increment != null) {
+            body = new Block(new List<Stmt> { body });
+        }
+
+        // Return ForLoopWithIncrement for the interpreter
+        Stmt loop = new ForLoopWithIncrement(condition, body, increment);
+
+        // Wrap with initializer if it exists
+        if (initializer != null) {
+            loop = new Block(new List<Stmt> { initializer, loop });
+        }
+
+        return loop;
+    }
+    
+    private If IfStatement() {
+        Consume(L_PAREN, "Expected '(' after 'if'.");
+        Expr condition = Expression();
+        Consume(R_PAREN, "Expected ')' after condition to complete if statement.");
+        
+        Stmt thenBranch = Statement();
+
+        var elifBranches = new List<Elif>();
+        while (Match(ELIF)) {
+            Consume(L_PAREN, "Expected '(' after 'elif'.");
+            Expr elifCondition = Expression();
+            Consume(R_PAREN, "Expected ')' after condition to complete elif branch.");
+            Stmt elifBranch = Statement();
+            elifBranches.Add(new Elif(elifCondition, elifBranch));
+        }
+        
+        Stmt elseBranch = null;
+        if (Match(ELSE)) {
+            elseBranch = Statement();
+        }
+        
+        return new If(condition, thenBranch, elifBranches, elseBranch);
+    }
+    
     private List<Stmt> Block() {
         List<Stmt> statements = new();
         
@@ -48,13 +139,13 @@ public class Parser(List<Token> tokens) {
     }
     
     private Var VarDeclaration() {
-        Token name = Consume(IDENTIFIER, "Expected name after 'var'");
+        Token name = Consume(IDENTIFIER, "Expected name after 'var'.");
 
         Expr initializer = null;
         if (Match(ASSIGNMENT)) {
             initializer = Expression();
         }
-        Consume(SEMICOLON, "Expected ';' after variable declaration");
+        Consume(SEMICOLON, "Expected ';' after variable declaration.");
         return new Var(name, initializer);
     }
     
@@ -62,6 +153,12 @@ public class Parser(List<Token> tokens) {
         Expr value = Expression();
         Consume(SEMICOLON, "Expected ';' after value.");
         return new Print(value);
+    }
+
+    private Println PrintLnStatement() {
+        Expr value = Expression();
+        Consume(SEMICOLON, "Expected ';' after value.");
+        return new Println(value);
     }
 
     private Expression ExpressionStatement() {
@@ -75,7 +172,7 @@ public class Parser(List<Token> tokens) {
     }
 
     private Expr Assignment() {
-        Expr expr = Equality();
+        Expr expr = Or();
         
         if (Match(ASSIGNMENT, PLUS_EQUAL, MINUS_EQUAL, MULT_EQUAL, DIV_EQUAL, MOD_EQUAL, POWER_EQUAL)) {
             Token op = Previous;
@@ -102,6 +199,28 @@ public class Parser(List<Token> tokens) {
                 return new Assign(name, value);
             }
             Error(op, "Invalid assignment target.");
+        }
+        return expr;
+    }
+
+    private Expr Or() {
+        Expr expr = And();
+
+        while (Match(OR)) {
+            Token op = Previous;
+            Expr right = And();
+            expr = new Logical(expr, op, right);
+        }
+        return expr;
+    }
+
+    private Expr And() {
+        Expr expr = Equality();
+
+        while (Match(AND)) {
+            Token op = Previous;
+            Expr right = Equality();
+            expr = new Logical(expr, op, right);
         }
         return expr;
     }

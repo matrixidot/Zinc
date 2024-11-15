@@ -4,8 +4,11 @@ using Void = Zinc.Tools.Void;
 
 namespace Zinc.Interpreting;
 
+using System.Xml.Xsl;
+
 public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
     private Environment env = new();
+    private bool suppressOutput = false;
     public void Interpret(List<Stmt> statements) {
         try {
             if (statements.Count == 1 && statements[0] is Expression expr) {
@@ -141,12 +144,31 @@ public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
         return expr.IsPrefix ? newValue : oldValue;
     }
 
+    public object VisitLogicalExpr(Logical expr) {
+        object left = Evaluate(expr.Left);
+
+        if (expr.Op.type == TokenType.OR) {
+            if (IsTruthy(left)) return left;
+        }
+        else {
+            if (!IsTruthy(left)) return left;
+        }
+        
+        return Evaluate(expr.Right);
+    }
+
     public Void VisitExpressionStmt(Expression stmt) {
         Evaluate(stmt.Expr);
         return null;
     }
     
     public Void VisitPrintStmt(Print stmt) {
+        object value = Evaluate(stmt.Expr);
+        Console.Write(Stringify(value));
+        return null;
+    }
+    
+    public Void VisitPrintlnStmt(Println stmt) {
         object value = Evaluate(stmt.Expr);
         Console.WriteLine(Stringify(value));
         return null;
@@ -162,9 +184,64 @@ public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
         return null;
     }
 
+    public Void VisitIfStmt(If stmt) {
+        if (IsTruthy(Evaluate(stmt.Condition))) {
+            Execute(stmt.ThenBranch);
+            
+        } else {
+            bool elifBranchExecuted = false;
+            foreach (var elif in stmt.ElifBranches) {
+                if (IsTruthy(Evaluate(elif.Condition))) {
+                    Execute(elif.Branch);
+                    elifBranchExecuted = true;
+                    break;
+                }
+            }
+
+            if (!elifBranchExecuted && stmt.ElseBranch != null) {
+                Execute(stmt.ElseBranch);
+            }
+        }
+        return null;
+    }
+
+    public Void VisitElifStmt(Elif stmt) {
+        throw new RuntimeError(new Token(TokenType.ELIF, "elif", null, 0), "Unexpected elif Statement, Are you missing an if?");
+    }
+
     public Void VisitBlockStmt(Block stmt) {
         ExecuteBlock(stmt.Statements, new Environment(env));
         return null;
+    }
+
+    public Void VisitWhileStmt(While stmt) {
+        try {
+            while (IsTruthy(Evaluate(stmt.Condition))) {
+                try {
+                    Execute(stmt.Body);
+                }
+                catch (ContinueError) {
+                    // Skip to next iteration by breaking out of body and moving to increment
+                }
+
+                // If this is a `for` loop with an increment, evaluate the increment
+                if (stmt is ForLoopWithIncrement forLoopStmt) {
+                    Evaluate(forLoopStmt.Increment);
+                }
+            }
+        } catch (BreakError) {
+            // Exit the loop on `break`
+        }
+        return null;
+    }
+
+
+    public Void VisitBreakStmt(Break stmt) {
+        throw new BreakError();
+    }
+
+    public Void VisitContinueStmt(Continue stmt) {
+        throw new ContinueError();
     }
     
     private void CheckDoubleOperands(Token op, object left, object right) {
@@ -196,7 +273,6 @@ public class Interpreter : Expr.ExprVisitor<object>, Stmt.StmtVisitor<Void> {
     }
     
     private bool IsTruthy(object obj) {
-        Console.WriteLine(obj);
         return obj switch {
             null => false,
             bool b => b,
